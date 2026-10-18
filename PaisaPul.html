@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>PaisaPul</title>
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);--bg:#f3f6f5;--card:#fff;--tx:#12201a;--mut:#64756d;--br:#dde5e1;--ac:#0b7a55;--ac2:#e2f4ec;--er:#b3261e;color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0e1411;--card:#17201c;--tx:#e8f0ec;--mut:#9aaba3;--br:#2a3731;--ac:#3ecf9a;--ac2:#143329;--er:#ff8a80;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0e1411;--card:#17201c;--tx:#e8f0ec;--mut:#9aaba3;--br:#2a3731;--ac:#3ecf9a;--ac2:#143329;--er:#ff8a80;color-scheme:dark}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;padding-bottom:90px}
+main{max-width:480px;margin:0 auto;padding:16px}
+h1{font-size:22px;margin:6px 0}h2{font-size:16px;margin:0 0 10px}
+.card{background:var(--card);border:1px solid var(--br);border-radius:16px;padding:16px;margin-bottom:14px}
+.hero{background:linear-gradient(135deg,#0b7a55,#0d5f8c);color:#fff;border-radius:20px;padding:20px;margin-bottom:14px}
+.hero .bal{font-size:34px;font-weight:700;margin:4px 0 12px}.hero .mut{color:#d5ece3}
+label{display:block;font-size:13px;color:var(--mut);margin:10px 0 4px}
+input,select{width:100%;padding:12px;border:1px solid var(--br);border-radius:12px;background:var(--bg);color:var(--tx);font-size:16px}
+button{width:100%;margin-top:14px;padding:13px;border:0;border-radius:12px;background:var(--ac);color:#fff;font-size:16px;font-weight:600}
+button.g{background:none;color:var(--ac);margin-top:6px;border:1px solid var(--br)}
+.hero button{background:rgba(255,255,255,.2);margin:0;width:auto;padding:8px 16px;font-size:14px}
+.row{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 0}
+.mut{color:var(--mut);font-size:13px}.er{color:var(--er);font-size:14px;margin-top:8px}
+.q{background:var(--ac2);border-radius:12px;padding:10px 12px;margin-top:12px}
+.av{width:40px;height:40px;border-radius:50%;background:var(--ac2);color:var(--ac);display:flex;align-items:center;justify-content:center;font-weight:700;flex:none}
+.li{display:flex;gap:12px;align-items:center;padding:10px 0;border-top:1px solid var(--br)}.li:first-of-type{border-top:0}
+.li>div:nth-child(2){flex:1;min-width:0}
+.tag{font-size:12px;padding:2px 9px;border-radius:99px;background:var(--ac2);color:var(--ac)}
+.chips{display:flex;gap:10px;overflow-x:auto;padding-bottom:4px}.chip{flex:none;text-align:center;font-size:12px;width:64px}
+.chip .av{margin:0 auto 4px;width:48px;height:48px}
+.bar{height:8px;border-radius:9px;background:var(--br);overflow:hidden}.bar i{display:block;height:100%;background:var(--ac)}
+nav{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-top:1px solid var(--br);display:flex;justify-content:center;padding:6px 8px calc(6px + env(safe-area-inset-bottom,0px))}
+nav div{display:flex;max-width:480px;width:100%}nav a{flex:1;text-align:center;font-size:12px;color:var(--mut);padding:6px 0}nav a b{display:block;font-size:20px}nav a.on{color:var(--ac);font-weight:700}
+.ok{text-align:center;padding:10px 0}.ok .big{font-size:48px}
+</style></head><body><main id="app"></main>
+<script>
+// ===== ONE API for all 4 countries. For live use, put Wise Platform or Thunes calls (from a backend) inside Api.quote / Api.send. =====
+const C={PK:{n:"Pakistan",f:"🇵🇰",cur:"PKR",usd:280,m:["JazzCash","Easypaisa","Bank account"]},BD:{n:"Bangladesh",f:"🇧🇩",cur:"BDT",usd:120,m:["bKash","Nagad","Bank account"]},IN:{n:"India",f:"🇮🇳",cur:"INR",usd:84,m:["UPI","Bank account"]},PH:{n:"Philippines",f:"🇵🇭",cur:"PHP",usd:58,m:["GCash","Maya","Bank account"]}};
+const Api={quote(a,b,amt){const fee=Math.max(amt*.01,.5*C[a].usd),rate=C[b].usd/C[a].usd;return{fee,rate,rcv:(amt-fee)*rate}},send:()=>new Promise(r=>setTimeout(()=>r({id:"PP"+Date.now().toString(36).toUpperCase()}),500))};
+const LIMIT=1000; // USD-equivalent per day
+const S={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+let users=S.get("pp_users",{}),me=S.get("pp_me",null),T="home",D={step:1},R=null,err="",mode="in";
+const save=()=>{S.set("pp_users",users);S.set("pp_me",me)},$=s=>document.querySelector(s);
+const f=(n,c)=>Number(n).toLocaleString(undefined,{maximumFractionDigits:2})+" "+c;
+const ini=s=>(s||"?").trim().split(/\s+/).map(x=>x[0]).slice(0,2).join("").toUpperCase();
+const opt=(l,sel)=>l.map(([v,t])=>`<option value="${v}"${v===sel?" selected":""}>${t}</option>`).join("");
+const cos=skip=>Object.keys(C).filter(k=>k!==skip).map(k=>[k,C[k].f+" "+C[k].n+" ("+C[k].cur+")"]);
+const todayUsd=u=>u.tx.filter(t=>new Date(t.d).toDateString()===new Date().toDateString()).reduce((s,t)=>s+t.amt/C[u.co].usd,0);
+function tick(u){u.tx.forEach(t=>{if(t.st==="Processing"&&Date.now()-new Date(t.d)>3000)t.st="Completed"})}
+const txRow=(u,t)=>`<div class="li" data-a="rc" data-v="${t.id}"><div class="av">${ini(t.to)}</div><div><b>${t.to}</b><div class="mut">${C[t.c].f} ${t.m} · ${new Date(t.d).toLocaleDateString()}</div></div><div style="text-align:right">-${f(t.amt,C[u.co].cur)}<div><span class="tag">${t.st}</span></div></div></div>`;
+
+function auth(){
+  $("#app").innerHTML=`<h1>💸 PaisaPul</h1><p class="mut">Send money between Pakistan, Bangladesh, India and the Philippines. Demo with virtual money.</p>
+  <div class="card"><h2>${mode==="up"?"Create account":"Log in"}</h2>
+  ${mode==="up"?`<label>Full name</label><input id="nm"><label>Your country</label><select id="co">${opt(cos(""))}</select><label>4-digit PIN (to confirm transfers)</label><input id="pn" inputmode="numeric" maxlength="4" type="password">`:""}
+  <label>Email</label><input id="em" type="email" autocomplete="email"><label>Password</label><input id="pw" type="password">
+  <div class="er">${err}</div><button data-a="auth">${mode==="up"?"Sign up":"Log in"}</button>
+  <button class="g" data-a="mode">${mode==="up"?"I already have an account":"Create a new account"}</button></div>`}
+
+function home(u){const cur=C[u.co].cur;return `<div class="hero"><div class="mut">${C[u.co].f} Wallet · ${C[u.co].n}</div><div class="bal">${f(u.bal,cur)}</div><button data-a="add">+ Add 50 USD (demo)</button> <button data-a="go" data-v="send">Send ➜</button></div>
+  ${u.rec.length?`<div class="card"><h2>Send again</h2><div class="chips">${u.rec.map((r,i)=>`<div class="chip" data-a="pick" data-v="${i}"><div class="av">${ini(r.n)}</div>${r.n.split(" ")[0]}</div>`).join("")}</div></div>`:""}
+  <div class="card"><h2>Live rates (sample)</h2>${Object.keys(C).filter(k=>k!==u.co).map(k=>`<div class="row"><span>${C[k].f} ${C[k].n}</span><b>1 ${cur} = ${(C[k].usd/C[u.co].usd).toFixed(4)} ${C[k].cur}</b></div>`).join("")}</div>
+  <div class="card"><h2>Recent</h2>${u.tx.length?u.tx.slice(0,3).map(t=>txRow(u,t)).join(""):'<p class="mut">No transfers yet.</p>'}</div>`}
+
+function send(u){const cur=C[u.co].cur,rc=D.rc||Object.keys(C).find(k=>k!==u.co),a=parseFloat(D.am),q=a>0?Api.quote(u.co,rc,a):null;
+  if(D.step===2)return `<h1>Review</h1><div class="card">
+  <div class="row"><span class="mut">To</span><b>${D.rn}</b></div><div class="row"><span class="mut">Where</span><span>${C[rc].f} ${C[rc].n} · ${D.rm||C[rc].m[0]}</span></div>
+  <div class="row"><span class="mut">Account</span><span>${D.ra}</span></div><div class="row"><span class="mut">You send</span><span>${f(a,cur)}</span></div>
+  <div class="row"><span class="mut">Fee</span><span>${f(q.fee,cur)}</span></div><div class="row"><b>They get</b><b>${f(q.rcv,C[rc].cur)}</b></div>
+  <label>Enter your PIN</label><input data-k="pin" type="password" inputmode="numeric" maxlength="4"><label style="display:flex;gap:8px;align-items:center"><input type="checkbox" data-k="sv" style="width:auto"${D.sv?" checked":""}> Save this recipient</label>
+  <div class="er">${err}</div><button data-a="ok">Confirm and send</button><button class="g" data-a="back">Edit</button></div>`;
+  return `<h1>Send money</h1><div class="card">
+  <label>Receiver name</label><input data-k="rn" value="${D.rn||""}"><label>Receiver country</label><select data-k="rc">${opt(cos(u.co),rc)}</select>
+  <label>Send to</label><select data-k="rm">${opt(C[rc].m.map(x=>[x,x]),D.rm)}</select>
+  <label>Phone or account number</label><input data-k="ra" value="${D.ra||""}"><label>Amount (${cur})</label><input data-k="am" type="number" inputmode="decimal" value="${D.am||""}">
+  <div id="qb">${qbox(u,rc,q)}</div><div class="er">${err}</div><button data-a="rev">Review</button></div>`}
+function qbox(u,rc,q){return q?`<div class="q"><div class="row"><span>Fee</span><span>${f(q.fee,C[u.co].cur)}</span></div><div class="row"><span>Rate</span><span>1 ${C[u.co].cur} = ${q.rate.toFixed(4)} ${C[rc].cur}</span></div><div class="row"><b>They get</b><b>${f(q.rcv,C[rc].cur)}</b></div></div>`:""}
+
+function hist(u){return `<h1>History</h1><div class="card">${u.tx.length?u.tx.map(t=>txRow(u,t)).join(""):'<p class="mut">No transfers yet.</p>'}</div>`}
+function prof(u){const used=Math.min(100,todayUsd(u)/LIMIT*100);return `<h1>Profile</h1><div class="card"><div class="li"><div class="av">${ini(u.name)}</div><div><b>${u.name}</b><div class="mut">${me} · ${C[u.co].f} ${C[u.co].n}</div></div></div></div>
+  <div class="card"><h2>Daily limit</h2><div class="bar"><i style="width:${used}%"></i></div><p class="mut">${Math.round(todayUsd(u))} of ${LIMIT} USD used today</p></div>
+  <div class="card"><h2>Saved recipients</h2>${u.rec.length?u.rec.map((r,i)=>`<div class="li"><div class="av">${ini(r.n)}</div><div><b>${r.n}</b><div class="mut">${C[r.c].f} ${r.m} · ${r.a}</div></div><span data-a="del" data-v="${i}" class="mut">✕</span></div>`).join(""):'<p class="mut">None saved yet.</p>'}</div>
+  <button class="g" data-a="lo">Log out</button><button class="g" data-a="reset">Reset demo data</button>`}
+function receipt(u){const t=u.tx.find(x=>x.id===R);return `<div class="card ok"><div class="big">${t.st==="Completed"?"✅":"⏳"}</div><h1>${t.st==="Completed"?"Money sent":"Processing"}</h1><div class="mut">${t.id} · ${new Date(t.d).toLocaleString()}</div>
+  <div class="row" style="margin-top:14px"><span class="mut">To</span><b>${t.to}</b></div><div class="row"><span class="mut">Via</span><span>${C[t.c].f} ${t.m} · ${t.a}</span></div>
+  <div class="row"><span class="mut">Sent</span><span>${f(t.amt,C[u.co].cur)}</span></div><div class="row"><span class="mut">Fee</span><span>${f(t.fee,C[u.co].cur)}</span></div><div class="row"><b>They got</b><b>${f(t.rcv,C[t.c].cur)}</b></div>
+  <button data-a="go" data-v="home">Done</button></div>`}
+const nav=()=>`<nav><div>${[["home","🏠","Home"],["send","➜","Send"],["hist","🕘","History"],["prof","👤","Profile"]].map(([k,i,t])=>`<a data-a="go" data-v="${k}" class="${T===k&&!R?"on":""}"><b>${i}</b>${t}</a>`).join("")}</div></nav>`;
+function render(){if(!me||!users[me])return auth();const u=users[me];u.rec=u.rec||[];u.pin=u.pin||"1234";tick(u);
+  $("#app").innerHTML=(R?receipt(u):{home,send,hist,prof}[T](u))+nav();window.scrollTo(0,0)}
+const act={
+  mode(){mode=mode==="up"?"in":"up";err="";render()},
+  auth(){const em=$("#em").value.trim().toLowerCase(),pw=$("#pw").value;
+    if(!em||pw.length<6){err="Enter an email and a 6+ character password.";return render()}
+    if(mode==="up"){const co=$("#co").value,pn=$("#pn").value;if(users[em]){err="Email already registered.";return render()}
+      if(!/^\d{4}$/.test(pn)){err="PIN must be 4 digits.";return render()}
+      users[em]={name:$("#nm").value.trim()||"User",pw,pin:pn,co,bal:200*C[co].usd,tx:[],rec:[]}}
+    else if(!users[em]||users[em].pw!==pw){err="Wrong email or password.";return render()}
+    me=em;err="";save();render()},
+  go(v){T=v;R=null;err="";if(v==="send")D={step:1};render()},
+  add(){const u=users[me];u.bal+=50*C[u.co].usd;save();render()},
+  pick(i){const r=users[me].rec[i];D={step:1,rn:r.n,rc:r.c,rm:r.m,ra:r.a};T="send";render()},
+  rev(){const u=users[me],a=parseFloat(D.am);D.rc=D.rc||Object.keys(C).find(k=>k!==u.co);D.rm=D.rm||C[D.rc].m[0];
+    if(!D.rn||!D.ra||!(a>0))err="Fill name, account and amount.";else if(a>u.bal)err="Not enough balance.";
+    else if(todayUsd(u)+a/C[u.co].usd>LIMIT)err="Daily limit of "+LIMIT+" USD reached.";else{err="";D.step=2}render()},
+  back(){D.step=1;err="";render()},
+  async ok(){const u=users[me],a=parseFloat(D.am);if(D.pin!==u.pin){err="Wrong PIN.";return render()}
+    const q=Api.quote(u.co,D.rc,a),r=await Api.send();u.bal-=a;
+    u.tx.unshift({id:r.id,to:D.rn,c:D.rc,m:D.rm,a:D.ra,amt:a,fee:q.fee,rcv:q.rcv,st:"Processing",d:new Date().toISOString()});
+    if(D.sv&&!u.rec.some(x=>x.a===D.ra&&x.c===D.rc))u.rec.unshift({n:D.rn,c:D.rc,m:D.rm,a:D.ra});
+    save();R=r.id;D={step:1};err="";render();setTimeout(()=>{tick(u);save();if(R===r.id)render()},3100)},
+  rc(v){R=v;render()},del(i){users[me].rec.splice(i,1);save();render()},
+  lo(){me=null;save();mode="in";render()},reset(){users={};me=null;save();render()}
+};
+document.addEventListener("click",e=>{const b=e.target.closest("[data-a]");if(b&&act[b.dataset.a])act[b.dataset.a](b.dataset.v)});
+document.addEventListener("input",e=>{const k=e.target.dataset.k;if(!k)return;D[k]=e.target.type==="checkbox"?e.target.checked:e.target.value;
+  if(k==="am"){const u=users[me],a=parseFloat(D.am),rc=D.rc||Object.keys(C).find(x=>x!==u.co);$("#qb").innerHTML=qbox(u,rc,a>0?Api.quote(u.co,rc,a):null)}});
+document.addEventListener("change",e=>{if(e.target.dataset.k==="rc"){D.rc=e.target.value;D.rm=C[D.rc].m[0];render()}});
+render();
+</script></body></html>
